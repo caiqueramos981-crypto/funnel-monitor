@@ -48,13 +48,14 @@
   }
 
   // CHECKOUT
-  else if (
-    host.includes("mundpay") ||
-    url.includes("checkout") ||
-    path.includes("checkout")
-  ) {
-    page = "checkout";
-  }
+ else if (
+  host.includes("lowify") ||
+  url.includes("checkout") ||
+  path.includes("checkout") ||
+  url.includes("payment")
+) {
+  page = "checkout";
+}
 
   // UPSELL
   else if (

@@ -35,10 +35,10 @@ const STEP_LABELS = {
   obrigado:  'Página de Obrigado'
 };
 
-// sessions: Map<session_id, { page, funnel, country, city, ts, lastSeen }>
+// sessions: Map<sessionId, { page, funnel, country, city, ts, lastSeen }>
 const sessions = new Map();
 
-// hourly buckets: Map<"YYYY-MM-DD HH", Map<step, Set<session_id>>>
+// hourly buckets: Map<"YYYY-MM-DD HH", Map<step, Set<sessionId>>>
 const hourlyBuckets = new Map();
 
 // daily stats: Map<"YYYY-MM-DD", { steps: {step: count}, sales: [] }>
@@ -159,17 +159,17 @@ if (!sessionId || !page) return res.status(400).json({ error: 'Missing fields' }
   const hk = hourKey();
 
   // Update session
-  sessions.set(session_id, { page, funnel, country: country || 'XX', city: city || '', lastSeen: now });
+  sessions.set(sessionId, { page, funnel, country: country || 'XX', city: city || '', lastSeen: now });
 
   if (step) {
     ensureDay(day);
     ensureHour(hk);
 
     // Daily unique sessions per step
-    const sid_key = `${day}:${step}:${session_id}`;
+    const sid_key = `${day}:${step}:${sessionId}`;
     if (!dailyStats[day][`_seen_${step}`]) dailyStats[day][`_seen_${step}`] = new Set();
-    if (!dailyStats[day][`_seen_${step}`].has(session_id)) {
-      dailyStats[day][`_seen_${step}`].add(session_id);
+    if (!dailyStats[day][`_seen_${step}`].has(sessionId)) {
+      dailyStats[day][`_seen_${step}`].add(sessionId);
       dailyStats[day].steps[step]++;
     }
 
@@ -179,7 +179,7 @@ if (!sessionId || !page) return res.status(400).json({ error: 'Missing fields' }
     dailyStats[day].countries[c] = (dailyStats[day].countries[c] || 0) + 1;
 
     // Hourly bucket
-    hourlyBuckets.get(hk).get(step).add(session_id);
+    hourlyBuckets.get(hk).get(step).add(sessionId);
   }
 
   broadcastStats();

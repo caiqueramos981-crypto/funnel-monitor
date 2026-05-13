@@ -1,106 +1,165 @@
-/**
- * Funnel Monitor Snippet v1.0
- * Lightweight tracker — max ~2kb minified
- * Usage: <script src="https://YOUR-APP.railway.app/snippet.js"
- *           data-server="https://YOUR-APP.railway.app"
- *           data-page="quiz"
- *           data-funnel="default">
- *        </script>
- */
 (function () {
-  'use strict';
+  const currentScript = document.currentScript;
 
-  var script = document.currentScript || (function () {
-    var s = document.getElementsByTagName('script');
-    return s[s.length - 1];
-  })();
+  const SERVER =
+    currentScript?.dataset?.server ||
+    "https://funnel-monitor-production.up.railway.app";
 
-  var SERVER = script.getAttribute('data-server') || 'https://YOUR-APP.railway.app';
-  var PAGE   = script.getAttribute('data-page')   || 'quiz';
-  var FUNNEL = script.getAttribute('data-funnel') || 'default';
-  var SESSION_KEY = 'fm_session';
-  var SESSION_TTL = 30 * 60 * 1000; // 30 min
+  const FUNNEL =
+    currentScript?.dataset?.funnel || "default";
 
-  // ── Session ID ──────────────────────────────────────────────────────────────
-  function getSession() {
-    try {
-      var raw = localStorage.getItem(SESSION_KEY);
-      if (raw) {
-        var obj = JSON.parse(raw);
-        if (obj.exp > Date.now()) {
-          obj.exp = Date.now() + SESSION_TTL;
-          localStorage.setItem(SESSION_KEY, JSON.stringify(obj));
-          return obj.id;
-        }
-      }
-    } catch (e) {}
-    var id = 's' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ id: id, exp: Date.now() + SESSION_TTL }));
-    } catch (e) {}
-    return id;
+  // =========================
+  // DETECÇÃO AUTOMÁTICA
+  // =========================
+
+  const url = window.location.href.toLowerCase();
+  const path = window.location.pathname.toLowerCase();
+  const host = window.location.hostname.toLowerCase();
+
+  let page = "unknown";
+
+  // QUIZ
+  if (
+    url.includes("quiz") ||
+    path.includes("quiz") ||
+    document.title.toLowerCase().includes("quiz")
+  ) {
+    page = "quiz";
   }
 
-  // ── Send event ──────────────────────────────────────────────────────────────
-  function sendEvent(geo) {
-    var payload = {
-      session_id: getSession(),
-      page:       PAGE,
-      funnel:     FUNNEL,
-      country:    (geo && geo.country_code) || '',
-      city:       (geo && geo.city)         || '',
-      referrer:   document.referrer         || '',
-      timestamp:  Date.now()
-    };
-
-    if (navigator.sendBeacon) {
-      var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      navigator.sendBeacon(SERVER + '/track', blob);
-    } else {
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', SERVER + '/track', true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.send(JSON.stringify(payload));
-    }
+  // RESULTADO
+  else if (
+    url.includes("resultado") ||
+    url.includes("result") ||
+    path.includes("resultado") ||
+    document.title.toLowerCase().includes("resultado")
+  ) {
+    page = "resultado";
   }
 
-  // ── Geo lookup ──────────────────────────────────────────────────────────────
-  var GEO_KEY = 'fm_geo';
-  var GEO_TTL = 60 * 60 * 1000; // 1h cache
-
-  function getGeoAndSend() {
-    try {
-      var cached = localStorage.getItem(GEO_KEY);
-      if (cached) {
-        var g = JSON.parse(cached);
-        if (g.exp > Date.now()) return sendEvent(g);
-      }
-    } catch (e) {}
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'https://ipapi.co/json/', true);
-    xhr.timeout = 3000;
-    xhr.onload = function () {
-      if (xhr.status === 200) {
-        try {
-          var geo = JSON.parse(xhr.responseText);
-          var toCache = { country_code: geo.country_code, city: geo.city, exp: Date.now() + GEO_TTL };
-          try { localStorage.setItem(GEO_KEY, JSON.stringify(toCache)); } catch (e) {}
-          sendEvent(toCache);
-        } catch (e) { sendEvent(null); }
-      } else {
-        sendEvent(null);
-      }
-    };
-    xhr.ontimeout = xhr.onerror = function () { sendEvent(null); };
-    xhr.send();
+  // VENDAS
+  else if (
+    url.includes("vendas") ||
+    url.includes("oferta") ||
+    url.includes("sales") ||
+    path.includes("vendas")
+  ) {
+    page = "vendas";
   }
 
-  // ── Boot ────────────────────────────────────────────────────────────────────
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', getGeoAndSend);
-  } else {
-    // Small defer so page loads first
-    setTimeout(getGeoAndSend, 300);
+  // CHECKOUT
+  else if (
+    host.includes("mundpay") ||
+    url.includes("checkout") ||
+    path.includes("checkout")
+  ) {
+    page = "checkout";
   }
+
+  // UPSELL
+  else if (
+    url.includes("upsell") ||
+    url.includes("upgrade") ||
+    path.includes("upsell")
+  ) {
+    page = "upsell";
+  }
+
+  // OBRIGADO
+  else if (
+    url.includes("obrigado") ||
+    url.includes("thank") ||
+    path.includes("obrigado")
+  ) {
+    page = "obrigado";
+  }
+
+  // =========================
+  // SESSION
+  // =========================
+
+  let sessionId = localStorage.getItem("fm_session");
+
+  if (!sessionId) {
+    sessionId =
+      Date.now() + "_" + Math.random().toString(36).substring(2);
+
+    localStorage.setItem("fm_session", sessionId);
+  }
+
+  // =========================
+  // UTM CAPTURE
+  // =========================
+
+  const params = new URLSearchParams(window.location.search);
+
+  const utms = {
+    utm_source: params.get("utm_source") || "",
+    utm_medium: params.get("utm_medium") || "",
+    utm_campaign: params.get("utm_campaign") || "",
+    utm_content: params.get("utm_content") || "",
+    utm_term: params.get("utm_term") || "",
+  };
+
+  // =========================
+  // DEVICE
+  // =========================
+
+  const device = /mobile/i.test(navigator.userAgent)
+    ? "mobile"
+    : "desktop";
+
+  // =========================
+  // PAYLOAD
+  // =========================
+
+  const payload = {
+    sessionId,
+    page,
+    funnel: FUNNEL,
+    url: window.location.href,
+    referrer: document.referrer || "",
+    timestamp: Date.now(),
+    device,
+    utms,
+  };
+
+  // =========================
+  // SEND EVENT
+  // =========================
+
+  fetch(`${SERVER}/track`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+
+  // =========================
+  // TEMPO NA PÁGINA
+  // =========================
+
+  const startTime = Date.now();
+
+  window.addEventListener("beforeunload", () => {
+    const duration = Math.floor((Date.now() - startTime) / 1000);
+
+    navigator.sendBeacon(
+      `${SERVER}/time`,
+      JSON.stringify({
+        sessionId,
+        page,
+        duration,
+        funnel: FUNNEL,
+      })
+    );
+  });
+
+  // =========================
+  // DEBUG
+  // =========================
+
+  console.log("⚡ Funnel Monitor");
+  console.log("Página detectada:", page);
 })();

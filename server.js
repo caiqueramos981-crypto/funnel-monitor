@@ -141,8 +141,17 @@ function authMiddleware(req, res, next) {
 
 // POST /track — pageview events from snippet.js
 app.post('/track', (req, res) => {
-  const { session_id, page, funnel = 'default', country, city, referrer, timestamp } = req.body;
-  if (!session_id || !page) return res.status(400).json({ error: 'Missing fields' });
+  const {
+  sessionId,
+  page,
+  funnel = 'default',
+  country,
+  city,
+  referrer,
+  timestamp
+} = req.body;
+
+if (!sessionId || !page) return res.status(400).json({ error: 'Missing fields' });
 
   const step = FUNNEL_STEPS.includes(page) ? page : null;
   const now = Date.now();

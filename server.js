@@ -117,16 +117,10 @@ setInterval(cleanOldHours, 60 * 60 * 1000);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // server-to-server
-    if (ALLOWED_ORIGINS.length === 0) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));

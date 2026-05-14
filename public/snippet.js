@@ -164,14 +164,3 @@
   console.log("⚡ Funnel Monitor");
   console.log("Página detectada:", page);
 })();
-
-app.post('/webhook/lowify', (req, res) => {
-
-  console.log('LOWIFY WEBHOOK RECEBIDO');
-  console.log(req.body);
-
-  res.json({
-    success: true
-  });
-
-});

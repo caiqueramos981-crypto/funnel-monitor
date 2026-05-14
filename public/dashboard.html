@@ -303,6 +303,49 @@ body {
   <div class="flash-amount" id="toast-amount"></div>
 </div>
 
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+  <div class="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
+    <div class="text-zinc-400 text-sm">
+      Faturamento Hoje
+    </div>
+
+    <div
+      id="revenueToday"
+      class="text-3xl font-bold mt-2"
+    >
+      R$ 0
+    </div>
+  </div>
+
+  <div class="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
+    <div class="text-zinc-400 text-sm">
+      Total de Vendas
+    </div>
+
+    <div
+      id="totalSales"
+      class="text-3xl font-bold mt-2"
+    >
+      0
+    </div>
+  </div>
+
+  <div class="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
+    <div class="text-zinc-400 text-sm">
+      Ticket Médio
+    </div>
+
+    <div
+      id="ticketAverage"
+      class="text-3xl font-bold mt-2"
+    >
+      R$ 0
+    </div>
+  </div>
+
+</div>
+
 <script>
 // ── Auth ──────────────────────────────────────────────────────────────────────
 const AUTH_KEY = 'fm_auth';
@@ -657,6 +700,19 @@ function initDashboard() {
 }
 
 checkSavedAuth();
+document.getElementById('revenueToday').innerText =
+  `R$ ${Number(data.revenue || 0).toFixed(2)}`;
+
+document.getElementById('totalSales').innerText =
+  data.totalSales || 0;
+
+const avg =
+  data.totalSales > 0
+    ? data.revenue / data.totalSales
+    : 0;
+
+document.getElementById('ticketAverage').innerText =
+  `R$ ${avg.toFixed(2)}`;
 </script>
 </body>
 </html>

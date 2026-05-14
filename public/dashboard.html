@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/jsvectormap/dist/css/jsvectormap.min.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap/dist/maps/world.js"></script>
+
 <title>Funil Monitor — Dashboard</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
@@ -282,6 +291,18 @@ body {
       <canvas id="chart-canvas"></canvas>
     </div>
 
+<!-- Real-time Map -->
+<div class="card" style="grid-column: span 2;">
+  <div class="section-title">🗺️ Visitantes em tempo real</div>
+
+  <div
+    id="world-map"
+    style="
+      width:100%;
+      height:320px;
+    "
+  ></div>
+</div>
     <!-- Countries -->
     <div class="card card-countries">
       <div class="section-title">🌎 Países (top 10)</div>
@@ -303,42 +324,73 @@ body {
   <div class="flash-amount" id="toast-amount"></div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+<div style="
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+  padding:0 28px 20px 28px;
+">
 
-  <div class="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
-    <div class="text-zinc-400 text-sm">
-      Faturamento Hoje
+  <div class="card">
+    <div style="
+      color:var(--dim);
+      font-size:11px;
+      margin-bottom:8px;
+    ">
+      FATURAMENTO HOJE
     </div>
 
     <div
       id="revenueToday"
-      class="text-3xl font-bold mt-2"
+      style="
+        font-size:32px;
+        font-family:var(--font-h);
+        font-weight:800;
+        color:#00e89c;
+      "
     >
       R$ 0
     </div>
   </div>
 
-  <div class="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
-    <div class="text-zinc-400 text-sm">
-      Total de Vendas
+  <div class="card">
+    <div style="
+      color:var(--dim);
+      font-size:11px;
+      margin-bottom:8px;
+    ">
+      TOTAL DE VENDAS
     </div>
 
     <div
       id="totalSales"
-      class="text-3xl font-bold mt-2"
+      style="
+        font-size:32px;
+        font-family:var(--font-h);
+        font-weight:800;
+      "
     >
       0
     </div>
   </div>
 
-  <div class="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
-    <div class="text-zinc-400 text-sm">
-      Ticket Médio
+  <div class="card">
+    <div style="
+      color:var(--dim);
+      font-size:11px;
+      margin-bottom:8px;
+    ">
+      TICKET MÉDIO
     </div>
 
     <div
       id="ticketAverage"
-      class="text-3xl font-bold mt-2"
+      style="
+        font-size:32px;
+        font-family:var(--font-h);
+        font-weight:800;
+        color:#3d7fff;
+      "
     >
       R$ 0
     </div>
@@ -475,10 +527,27 @@ const STEP_COLORS = {
 function renderStats(data) {
   if (!data) return;
 
+
   // KPIs
   setEl('kpi-live',  data.live ?? '—');
   setEl('kpi-sales', data.totalSales ?? '—');
   setEl('kpi-rev',   'R$ ' + fmt2(data.revenue));
+
+ // NOVOS CARDS
+  document.getElementById('revenueToday').innerText =
+    `R$ ${Number(data.revenue || 0).toFixed(2)}`;
+
+  document.getElementById('totalSales').innerText =
+    data.totalSales || 0;
+
+  const avg =
+    data.totalSales > 0
+      ? data.revenue / data.totalSales
+      : 0;
+
+  document.getElementById('ticketAverage').innerText =
+    `R$ ${avg.toFixed(2)}`;
+
 
   // CR quiz → checkout
   const funnelSteps = data.funnelSteps || [];
@@ -501,7 +570,7 @@ function renderStats(data) {
 
   // Countries
   renderCountries(data.countries || []);
-
+  renderMap(data.countries || []);
   // Sales feed
   renderSalesFeed(data.sales || []);
 
@@ -564,13 +633,110 @@ function renderSalesFeed(sales) {
   const html = sales.map(s => {
     const t = new Date(s.ts);
     const time = t.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-    return `<div class="sale-row">
-      <span class="sale-time">${time}</span>
-      <span class="sale-name">${esc(s.customer_name || 'Cliente')}</span>
-      <span class="sale-amount">R$${fmt2(s.amount)}</span>
-    </div>`;
+   return `<div class="sale-row">
+  <span class="sale-time">${time}</span>
+
+  <div style="flex:1;display:flex;flex-direction:column;">
+    <span class="sale-name">
+      ${esc(s.customer_name || 'Cliente')}
+    </span>
+
+    <span style="
+      font-size:10px;
+      color:var(--dim);
+      margin-top:2px;
+    ">
+      ${esc(s.utm_source || s.source || 'Direto')}
+    </span>
+  </div>
+
+  <span class="sale-amount">
+    R$${fmt2(s.amount)}
+  </span>
+</div>`;
   }).join('') || '<div style="color:var(--dim);font-size:12px">Nenhuma venda ainda</div>';
   document.getElementById('sales-feed').innerHTML = html;
+}
+
+// ── Real-time Map ─────────────────────────────────────────────
+let worldMap = null;
+
+function renderMap(countries) {
+
+  try {
+
+    if (typeof jsVectorMap === 'undefined') {
+      console.log('jsVectorMap não carregado');
+      return;
+    }
+
+    const el = document.getElementById('world-map');
+
+    if (!el) {
+      console.log('Elemento #world-map não encontrado');
+      return;
+    }
+
+    const data = {};
+
+    countries.forEach(c => {
+      if (c.code) {
+        data[c.code.toUpperCase()] = c.count || 0;
+      }
+    });
+
+    // cria mapa
+    if (!worldMap) {
+
+      worldMap = new jsVectorMap({
+
+        selector: '#world-map',
+
+        map: 'world',
+
+        backgroundColor: 'transparent',
+
+        zoomButtons: false,
+
+        zoomOnScroll: false,
+
+        regionStyle: {
+          initial: {
+            fill: '#1c2540',
+            stroke: '#0e1320',
+            strokeWidth: 1
+          },
+
+          hover: {
+            fill: '#3d7fff'
+          }
+        },
+
+        series: {
+          regions: [{
+            values: data,
+            scale: ['#2a3558', '#00e89c'],
+            normalizeFunction: 'polynomial'
+          }]
+        }
+
+      });
+
+      console.log('Mapa criado');
+
+    } else {
+
+      // atualiza valores
+      worldMap.series.regions[0].setValues(data);
+
+    }
+
+  } catch (err) {
+
+    console.error('Erro no mapa:', err);
+
+  }
+
 }
 
 // ── Chart ─────────────────────────────────────────────────────────────────────
@@ -700,19 +866,6 @@ function initDashboard() {
 }
 
 checkSavedAuth();
-document.getElementById('revenueToday').innerText =
-  `R$ ${Number(data.revenue || 0).toFixed(2)}`;
-
-document.getElementById('totalSales').innerText =
-  data.totalSales || 0;
-
-const avg =
-  data.totalSales > 0
-    ? data.revenue / data.totalSales
-    : 0;
-
-document.getElementById('ticketAverage').innerText =
-  `R$ ${avg.toFixed(2)}`;
 </script>
 </body>
 </html>

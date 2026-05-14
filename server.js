@@ -140,6 +140,40 @@ function authMiddleware(req, res, next) {
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // POST /track — pageview events from snippet.js
+// Dados em memória das etapas do quiz
+const quizSteps = {}; // { 'etapa-1': { enters: 0, leaves: 0, totalTime: 0 }, ... }
+
+app.post('/api/quiz-step', authMiddleware, (req, res) => {
+  const { etapa, evento, tempo_ms } = req.body;
+  if (!etapa) return res.sendStatus(400);
+
+  if (!quizSteps[etapa]) {
+    quizSteps[etapa] = { enters: 0, leaves: 0, totalTime: 0 };
+  }
+
+  if (evento === 'enter') {
+    quizSteps[etapa].enters++;
+  } else if (evento === 'leave') {
+    quizSteps[etapa].leaves++;
+    quizSteps[etapa].totalTime += (tempo_ms || 0);
+  }
+
+  // Emite via WebSocket para o dashboard atualizar em tempo real
+  broadcast({ type: 'quiz-steps', data: formatQuizSteps() });
+
+  res.sendStatus(200);
+});
+
+function formatQuizSteps() {
+  return Object.entries(quizSteps).map(([id, s]) => ({
+    id,
+    enters:     s.enters,
+    dropoff:    s.enters - s.leaves,      // quem saiu sem avançar
+    dropoffPct: s.enters > 0 ? (((s.enters - s.leaves) / s.enters) * 100).toFixed(1) : '0',
+    avgTime:    s.leaves > 0 ? Math.round(s.totalTime / s.leaves / 1000) : 0, // em segundos
+  }));
+}
+
 app.post('/track', (req, res) => {
   const {
   sessionId,
@@ -323,7 +357,7 @@ app.get('/api/auth', authMiddleware, (req, res) => {
 
 // GET /api/stats — full stats for dashboard
 app.get('/api/stats', authMiddleware, (req, res) => {
-  res.json(buildStatsPayload());
+  res.json(buildStatsPayload()), quizSteps: formatQuizSteps();
 });
 
 // ─── Stats builder ────────────────────────────────────────────────────────────

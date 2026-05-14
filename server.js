@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
@@ -220,6 +221,132 @@ if (!sessionId || !page) return res.status(400).json({ error: 'Missing fields' }
   res.json({ ok: true });
 });
 
+// ── WEBHOOK LASTLINK ─────────────────────────────
+app.post('/webhook/lastlink', (req, res) => {
+
+  try {
+
+    console.log('LASTLINK WEBHOOK RECEBIDO');
+    console.log(req.body);
+
+    const data = req.body;
+
+    // Detecta compra aprovada
+    const status =
+      data.status ||
+      data.event ||
+      data.payment_status;
+
+    const approved =
+      status === 'approved' ||
+      status === 'paid' ||
+      status === 'payment.approved';
+
+    if (!approved) {
+
+      return res.json({
+        ok: true,
+        ignored: true
+      });
+
+    }
+
+    const day = todayKey();
+
+    ensureDay(day);
+
+    const sale = {
+
+      id:
+        data.id ||
+        data.transaction_id ||
+        Date.now(),
+
+      product_id:
+        data.product_name ||
+        data.product ||
+        'Produto',
+
+      amount:
+        parseFloat(
+          data.purchase?.total ||
+          data.amount ||
+          0
+        ),
+
+      customer_name:
+        data.customer?.name ||
+        data.name ||
+        'Cliente',
+
+      email:
+        data.customer?.email || '',
+
+      country:
+        data.customer?.country || 'BR',
+
+      utm_source:
+        data.utm?.source || 'Direto',
+
+      ts:
+        Date.now()
+
+    };
+
+    // feed realtime
+    salesFeed.push(sale);
+
+    if (salesFeed.length > 100) {
+      salesFeed.shift();
+    }
+
+    // salva no dia
+    if (!dailyStats[day].sales) {
+      dailyStats[day].sales = [];
+    }
+
+    dailyStats[day].sales.push(sale);
+
+    // registra conversão
+    const fakeSession = `ll_${sale.id}`;
+
+    ['checkout', 'obrigado'].forEach(step => {
+
+      if (!dailyStats[day][`_seen_${step}`]) {
+        dailyStats[day][`_seen_${step}`] = new Set();
+      }
+
+      if (!dailyStats[day][`_seen_${step}`].has(fakeSession)) {
+
+        dailyStats[day][`_seen_${step}`].add(fakeSession);
+
+        dailyStats[day].steps[step]++;
+
+      }
+
+    });
+
+    // websocket realtime
+    broadcastStats({
+      newSale: sale
+    });
+
+    return res.json({
+      ok: true
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    return res.status(500).json({
+      error: err.message
+    });
+
+  }
+
+});
+
 // POST /webhook/mundpay — payment confirmed
 app.post('/webhook/mundpay', (req, res) => {
   const { event, order_id, product_id, amount, customer } = req.body;
@@ -256,6 +383,7 @@ app.post('/webhook/mundpay', (req, res) => {
   broadcastStats({ newSale: sale });
   res.json({ ok: true });
 });
+
 
 // POST /webhook/lowify
 app.post('/webhook/lowify', (req, res) => {
@@ -357,7 +485,10 @@ app.get('/api/auth', authMiddleware, (req, res) => {
 
 // GET /api/stats — full stats for dashboard
 app.get('/api/stats', authMiddleware, (req, res) => {
-  res.json(buildStatsPayload()), quizSteps: formatQuizSteps();
+  res.json({
+  ...buildStatsPayload(),
+  quizSteps: formatQuizSteps()
+});
 });
 
 // ─── Stats builder ────────────────────────────────────────────────────────────

@@ -1,241 +1,754 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap/dist/css/jsvectormap.min.css" />
+
 <script src="https://cdn.jsdelivr.net/npm/jsvectormap"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsvectormap/dist/maps/world.js"></script>
 
-<title>Funil Monitor — Dashboard</title>
+<title>Funil Monitor</title>
 
 <style>
-/* ===== SEU CSS MANTIDO INTACTO ===== */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+:root{
+  --bg:#080b10;
+  --surface:#0e1320;
+  --border:#1c2540;
+  --muted:#2a3558;
+  --text:#c8d4f0;
+  --dim:#5a6a9a;
+  --accent:#3d7fff;
+  --green:#00e89c;
+  --red:#ff3d5a;
+  --font-h:'Syne',sans-serif;
+  --font-m:'JetBrains Mono',monospace;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-m);
+  overflow-x:hidden;
+}
+
+/* LOGIN */
+
+#login-screen{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--bg);
+  z-index:999;
+}
+
+.login-box{
+  width:360px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:40px;
+}
+
+.logo{
+  font-size:24px;
+  font-family:var(--font-h);
+  font-weight:800;
+  margin-bottom:8px;
+}
+
+.sub{
+  color:var(--dim);
+  margin-bottom:24px;
+  font-size:13px;
+}
+
+.login-box input{
+  width:100%;
+  padding:12px;
+  background:#080b10;
+  border:1px solid var(--border);
+  border-radius:10px;
+  color:white;
+  margin-bottom:12px;
+}
+
+.login-box button{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:var(--accent);
+  color:white;
+  font-weight:700;
+  cursor:pointer;
+}
+
+/* APP */
+
+#app{
+  display:none;
+}
+
+.top-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:18px 28px;
+  border-bottom:1px solid var(--border);
+  position:sticky;
+  top:0;
+  background:rgba(8,11,16,.9);
+  backdrop-filter:blur(10px);
+  z-index:50;
+}
+
+.brand{
+  font-size:20px;
+  font-family:var(--font-h);
+  font-weight:800;
+}
+
+.brand span{
+  color:var(--accent);
+}
+
+.top-bar-right{
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
+
+.badge-live{
+  background:rgba(0,232,156,.12);
+  color:var(--green);
+  border:1px solid rgba(0,232,156,.3);
+  border-radius:999px;
+  padding:6px 12px;
+  font-size:12px;
+}
+
+#sound-btn{
+  background:var(--surface);
+  border:1px solid var(--border);
+  color:white;
+  padding:6px 10px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:18px;
+  padding:20px 28px;
+}
+
+@media(max-width:1000px){
+  .grid{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+@media(max-width:680px){
+  .grid{
+    grid-template-columns:1fr;
+  }
+}
+
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:22px;
+}
+
+.card-label{
+  color:var(--dim);
+  font-size:11px;
+  margin-bottom:10px;
+}
+
+.card-value{
+  font-size:38px;
+  font-family:var(--font-h);
+  font-weight:800;
+}
+
+.section-title{
+  margin-bottom:18px;
+  font-size:14px;
+  font-weight:700;
+}
+
+.card-funnel{
+  grid-column:span 2;
+}
+
+.card-chart{
+  grid-column:span 2;
+}
+
+@media(max-width:680px){
+  .card-funnel,
+  .card-chart{
+    grid-column:span 1;
+  }
+}
+
+.funnel-step{
+  margin-bottom:14px;
+}
+
+.step-top{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:6px;
+  font-size:12px;
+}
+
+.bar{
+  width:100%;
+  height:10px;
+  border-radius:999px;
+  background:#1a2239;
+  overflow:hidden;
+}
+
+.bar-fill{
+  height:100%;
+  border-radius:999px;
+  background:var(--accent);
+}
+
+.country-row,
+.sale-row{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:10px;
+  font-size:12px;
+}
+
+.sale-row{
+  padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+}
+
+#chart-canvas{
+  width:100%;
+  height:220px;
+}
+
+.new-sale-flash{
+  position:fixed;
+  top:90px;
+  right:24px;
+  background:var(--surface);
+  border:1px solid var(--green);
+  border-radius:16px;
+  padding:18px;
+  min-width:240px;
+  display:none;
+  z-index:999;
+}
+
+.flash-label{
+  color:var(--green);
+  font-size:11px;
+  margin-bottom:6px;
+}
+
+.flash-name{
+  font-size:15px;
+  margin-bottom:6px;
+}
+
+.flash-amount{
+  font-size:26px;
+  color:var(--green);
+  font-family:var(--font-h);
+  font-weight:800;
+}
+
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
 <div id="login-screen">
+
   <div class="login-box">
+
     <div class="logo">⚡ Funil Monitor</div>
-    <div class="sub">Dashboard privado de monitoramento</div>
-    <input type="password" id="pwd-input" placeholder="Senha de acesso">
-    <button onclick="doLogin()">Entrar</button>
+
+    <div class="sub">
+      Dashboard privado
+    </div>
+
+    <input type="password" id="pwd-input" placeholder="Senha" />
+
+    <button onclick="doLogin()">
+      Entrar
+    </button>
+
     <div id="login-error"></div>
+
   </div>
+
 </div>
 
-<!-- APP -->
 <div id="app">
 
-  <header class="top-bar">
-    <div class="brand">⚡ Funil<span>Monitor</span></div>
-    <div class="top-bar-right">
-      <span id="clock"></span>
-      <div class="badge-live"><span class="dot"></span>AO VIVO</div>
-      <button id="sound-btn" onclick="toggleSound()">🔕</button>
-      <div id="ws-status"></div>
-    </div>
-  </header>
+<header class="top-bar">
 
-  <main class="grid">
+  <div class="brand">
+    ⚡ Funil<span>Monitor</span>
+  </div>
 
-    <!-- KPI -->
-    <div class="card">
-      <div class="card-label">Visitantes ao vivo</div>
-      <div class="card-value" id="kpi-live">—</div>
+  <div class="top-bar-right">
+
+    <span id="clock"></span>
+
+    <div class="badge-live">
+      AO VIVO
     </div>
 
-    <div class="card">
-      <div class="card-label">Vendas hoje</div>
-      <div class="card-value" id="kpi-sales">—</div>
+    <button id="sound-btn" onclick="toggleSound()">
+      🔕
+    </button>
+
+  </div>
+
+</header>
+
+<main class="grid">
+
+  <div class="card">
+    <div class="card-label">Visitantes ao vivo</div>
+    <div class="card-value" id="kpi-live">0</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Vendas hoje</div>
+    <div class="card-value" id="kpi-sales">0</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Faturamento</div>
+    <div class="card-value" id="kpi-revenue">R$0</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Conversão</div>
+    <div class="card-value" id="kpi-cr">0%</div>
+  </div>
+
+  <div class="card card-funnel">
+
+    <div class="section-title">
+      🔽 Funil
     </div>
 
-    <div class="card">
-      <div class="card-label">Conversão</div>
-      <div class="card-value" id="kpi-cr">—</div>
+    <div id="funnel-list"></div>
+
+  </div>
+
+  <div class="card card-chart">
+
+    <div class="section-title">
+      📈 Tráfego
     </div>
 
-    <div class="card">
-      <div class="card-label">Top etapa</div>
-      <div class="card-value" id="kpi-top-step">—</div>
+    <canvas id="chart-canvas"></canvas>
+
+  </div>
+
+  <div class="card">
+
+    <div class="section-title">
+      🌎 Países
     </div>
 
-    <!-- FUNNEL -->
-    <div class="card card-funnel">
-      <div class="section-title">Funil</div>
-      <div id="funnel-list"></div>
+    <div id="countries-list"></div>
+
+  </div>
+
+  <div class="card">
+
+    <div class="section-title">
+      💰 Vendas
     </div>
 
-    <!-- CHART -->
-    <div class="card card-chart">
-      <div class="section-title">Tráfego</div>
-      <canvas id="chart-canvas"></canvas>
+    <div id="sales-feed"></div>
+
+  </div>
+
+  <div class="card" style="grid-column:span 2;">
+
+    <div class="section-title">
+      🗺️ Mapa em tempo real
     </div>
 
-    <!-- MAPA -->
-    <div class="card">
-      <div class="section-title">Mapa</div>
-      <div id="world-map" style="width:100%; height:320px;"></div>
+    <div id="world-map" style="width:100%;height:320px;"></div>
+
+  </div>
+
+  <div class="card" style="grid-column:span 2;">
+
+    <div class="section-title">
+      🔥 Heatmap realtime
     </div>
 
-    <!-- HEATMAP (CORRIGIDO: AGORA NO HTML) -->
-    <div class="card">
-      <div class="section-title">Heatmap Realtime</div>
+    <canvas
+      id="heatmap-canvas"
+      style="width:100%;height:320px;background:#09111f;border-radius:12px;"
+    ></canvas>
 
-      <canvas
-        id="heatmap-canvas"
-        style="width:100%; height:320px; background:#0e1320; border-radius:12px;"
-      ></canvas>
+  </div>
 
-    </div>
+</main>
 
-    <!-- PAÍSES -->
-    <div class="card">
-      <div class="section-title">Países</div>
-      <div id="countries-list"></div>
-    </div>
-
-    <!-- VENDAS -->
-    <div class="card">
-      <div class="section-title">Vendas</div>
-      <div id="sales-feed"></div>
-    </div>
-
-  </main>
 </div>
 
-<!-- TOAST -->
 <div class="new-sale-flash" id="sale-toast">
-  <div class="flash-label">Nova venda</div>
+
+  <div class="flash-label">
+    🎉 Nova venda
+  </div>
+
   <div class="flash-name" id="toast-name"></div>
+
   <div class="flash-amount" id="toast-amount"></div>
+
 </div>
 
 <script>
 
-/* ================= AUTH ================= */
+const AUTH_KEY='fm_auth';
 
-const AUTH_KEY = 'fm_auth';
-let PASSWORD = '';
+let PASSWORD='';
 
-function doLogin() {
-  const val = document.getElementById('pwd-input').value;
+let soundEnabled=false;
 
-  fetch('/api/auth', {
-    headers: { Authorization: 'Bearer ' + val }
-  })
-  .then(r => {
-    if (r.ok) {
-      PASSWORD = val;
-      localStorage.setItem(AUTH_KEY, val);
-      showApp();
-    } else {
-      document.getElementById('login-error').textContent = 'Senha inválida';
+function doLogin(){
+
+  const val=document.getElementById('pwd-input').value;
+
+  fetch('/api/auth',{
+    headers:{
+      Authorization:'Bearer '+val
     }
+  })
+  .then(r=>{
+
+    if(r.ok){
+
+      PASSWORD=val;
+
+      localStorage.setItem(AUTH_KEY,val);
+
+      showApp();
+
+    }else{
+
+      document.getElementById('login-error').textContent='Senha inválida';
+
+    }
+
   });
+
 }
 
-function checkSavedAuth() {
-  const saved = localStorage.getItem(AUTH_KEY);
-  if (saved) {
-    PASSWORD = saved;
+function checkSavedAuth(){
+
+  const saved=localStorage.getItem(AUTH_KEY);
+
+  if(saved){
+
+    PASSWORD=saved;
+
     showApp();
+
   }
+
 }
 
-function showApp() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+function showApp(){
+
+  document.getElementById('login-screen').style.display='none';
+
+  document.getElementById('app').style.display='block';
+
   initDashboard();
+
 }
 
-/* ================= CLOCK ================= */
+setInterval(()=>{
 
-setInterval(() => {
-  document.getElementById('clock').textContent =
+  document.getElementById('clock').textContent=
     new Date().toLocaleTimeString('pt-BR');
-}, 1000);
 
-/* ================= HEATMAP (CORRIGIDO) ================= */
+},1000);
 
-function renderHeatmap(points) {
-  const canvas = document.getElementById('heatmap-canvas');
-  if (!canvas) return;
+function toggleSound(){
 
-  const ctx = canvas.getContext('2d');
-  const rect = canvas.getBoundingClientRect();
+  soundEnabled=!soundEnabled;
 
-  canvas.width = rect.width;
-  canvas.height = rect.height;
+  document.getElementById('sound-btn').textContent=
+    soundEnabled ? '🔔' : '🔕';
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  points.forEach(p => {
-    const x = (p.x / p.w) * canvas.width;
-    const y = (p.y / p.h) * canvas.height;
-
-    const g = ctx.createRadialGradient(x, y, 0, x, y, 50);
-    g.addColorStop(0, 'rgba(255,0,80,.35)');
-    g.addColorStop(1, 'rgba(255,0,80,0)');
-
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, 50, 0, Math.PI * 2);
-    ctx.fill();
-  });
 }
 
-/* ================= WEB SOCKET (CORRIGIDO) ================= */
+function renderStats(data){
+
+  document.getElementById('kpi-live').textContent=data.live||0;
+
+  document.getElementById('kpi-sales').textContent=data.totalSales||0;
+
+  document.getElementById('kpi-revenue').textContent=
+    'R$'+Number(data.revenue||0).toFixed(2);
+
+  document.getElementById('kpi-cr').textContent=
+    data.cr || '0%';
+
+  renderCountries(data.countries||[]);
+
+  renderSales(data.sales||[]);
+
+  renderFunnel(data.funnelSteps||[]);
+
+  renderMap(data.countries||[]);
+
+}
+
+function renderCountries(countries){
+
+  const html=countries.map(c=>`
+    <div class="country-row">
+      <span>${c.code}</span>
+      <span>${c.count}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('countries-list').innerHTML=html;
+
+}
+
+function renderSales(sales){
+
+  const html=sales.map(s=>`
+    <div class="sale-row">
+      <span>${s.customer_name}</span>
+      <strong>R$${Number(s.amount).toFixed(2)}</strong>
+    </div>
+  `).join('');
+
+  document.getElementById('sales-feed').innerHTML=html;
+
+}
+
+function renderFunnel(steps){
+
+  const max=Math.max(...steps.map(s=>s.total),1);
+
+  const html=steps.map(s=>{
+
+    const width=(s.total/max)*100;
+
+    return `
+      <div class="funnel-step">
+
+        <div class="step-top">
+          <span>${s.label}</span>
+          <span>${s.total}</span>
+        </div>
+
+        <div class="bar">
+          <div class="bar-fill" style="width:${width}%"></div>
+        </div>
+
+      </div>
+    `;
+
+  }).join('');
+
+  document.getElementById('funnel-list').innerHTML=html;
+
+}
+
+function renderHeatmap(points){
+
+  const canvas=document.getElementById('heatmap-canvas');
+
+  const ctx=canvas.getContext('2d');
+
+  const rect=canvas.getBoundingClientRect();
+
+  canvas.width=rect.width;
+
+  canvas.height=rect.height;
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  points.forEach(p=>{
+
+    const x=(p.x/p.w)*canvas.width;
+
+    const y=(p.y/p.h)*canvas.height;
+
+    const g=ctx.createRadialGradient(x,y,0,x,y,50);
+
+    g.addColorStop(0,'rgba(255,0,80,.35)');
+
+    g.addColorStop(1,'rgba(255,0,80,0)');
+
+    ctx.fillStyle=g;
+
+    ctx.beginPath();
+
+    ctx.arc(x,y,50,0,Math.PI*2);
+
+    ctx.fill();
+
+  });
+
+}
+
+let worldMap=null;
+
+function renderMap(countries){
+
+  const values={};
+
+  countries.forEach(c=>{
+    values[c.code]=c.count;
+  });
+
+  if(!worldMap){
+
+    worldMap=new jsVectorMap({
+
+      selector:'#world-map',
+
+      map:'world',
+
+      backgroundColor:'transparent',
+
+      zoomButtons:false,
+
+      regionStyle:{
+        initial:{
+          fill:'#1c2540'
+        }
+      },
+
+      series:{
+        regions:[{
+          values:values,
+          scale:['#2a3558','#00e89c'],
+          normalizeFunction:'polynomial'
+        }]
+      }
+
+    });
+
+  }else{
+
+    worldMap.series.regions[0].setValues(values);
+
+  }
+
+}
 
 let ws;
 
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+function connectWS(){
 
-  ws = new WebSocket(
+  const proto=
+    location.protocol==='https:' ? 'wss' : 'ws';
+
+  ws=new WebSocket(
     `${proto}://${location.host}?token=${encodeURIComponent(PASSWORD)}`
   );
 
-  ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data);
+  ws.onmessage=(e)=>{
 
-      if (msg.type === 'stats') {
-        renderStats(msg.data);
+    const msg=JSON.parse(e.data);
+
+    if(msg.type==='stats'){
+
+      renderStats(msg.data);
+
+      if(msg.newSale){
+
+        showToast(msg.newSale);
+
       }
 
-      if (msg.type === 'heatmap') {
-        renderHeatmap(msg.data);
-      }
-
-    } catch (err) {
-      console.error(err);
     }
+
+    if(msg.type==='heatmap'){
+
+      renderHeatmap(msg.data);
+
+    }
+
   };
+
 }
 
-/* ================= STATS ================= */
+function showToast(sale){
 
-function renderStats(data) {
-  document.getElementById('kpi-live').textContent = data.live;
-  document.getElementById('kpi-sales').textContent = data.totalSales;
-  document.getElementById('kpi-cr').textContent = data.cr;
+  if(soundEnabled){
+
+    const audio=new Audio(
+      'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
+    );
+
+    audio.play();
+
+  }
+
+  document.getElementById('toast-name').textContent=
+    sale.customer_name;
+
+  document.getElementById('toast-amount').textContent=
+    'R$'+Number(sale.amount).toFixed(2);
+
+  const toast=document.getElementById('sale-toast');
+
+  toast.style.display='block';
+
+  setTimeout(()=>{
+    toast.style.display='none';
+  },5000);
+
 }
 
-/* ================= INIT ================= */
+function initDashboard(){
 
-function initDashboard() {
-  fetch('/api/stats', {
-    headers: { Authorization: 'Bearer ' + PASSWORD }
+  fetch('/api/stats',{
+    headers:{
+      Authorization:'Bearer '+PASSWORD
+    }
   })
-  .then(r => r.json())
+  .then(r=>r.json())
   .then(renderStats);
 
   connectWS();
+
 }
 
 checkSavedAuth();

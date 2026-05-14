@@ -167,30 +167,8 @@
 
 app.post('/webhook/lowify', (req, res) => {
 
-  console.log('LOWIFY WEBHOOK:', req.body);
-
-  const data = req.body;
-
-  // Exemplo básico
-  const sale = {
-    id: Date.now(),
-    name: data.customer?.name || 'Cliente',
-    amount: data.amount || 0,
-    product: data.product?.name || 'Produto',
-    status: data.status || 'approved',
-    createdAt: new Date().toISOString()
-  };
-
-  sales.unshift(sale);
-
-  if (sales.length > 10) {
-    sales.pop();
-  }
-
-  broadcast({
-    type: 'new_sale',
-    sale
-  });
+  console.log('LOWIFY WEBHOOK RECEBIDO');
+  console.log(req.body);
 
   res.json({
     success: true

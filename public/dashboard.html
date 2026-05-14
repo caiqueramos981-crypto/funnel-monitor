@@ -442,6 +442,12 @@ let PASSWORD='';
 
 let soundEnabled=false;
 
+let ws=null;
+
+let worldMap=null;
+
+/* LOGIN */
+
 function doLogin(){
 
   const val=document.getElementById('pwd-input').value;
@@ -453,19 +459,20 @@ function doLogin(){
   })
   .then(r=>{
 
-    if(r.ok){
-
-      PASSWORD=val;
-
-      localStorage.setItem(AUTH_KEY,val);
-
-      showApp();
-
-    }else{
-
-      document.getElementById('login-error').textContent='Senha inválida';
-
+    if(!r.ok){
+      throw new Error();
     }
+
+    PASSWORD=val;
+
+    localStorage.setItem(AUTH_KEY,val);
+
+    showApp();
+
+  })
+  .catch(()=>{
+
+    document.getElementById('login-error').textContent='Senha inválida';
 
   });
 
@@ -495,12 +502,22 @@ function showApp(){
 
 }
 
+/* CLOCK */
+
 setInterval(()=>{
 
-  document.getElementById('clock').textContent=
-    new Date().toLocaleTimeString('pt-BR');
+  const clock=document.getElementById('clock');
+
+  if(clock){
+
+    clock.textContent=
+      new Date().toLocaleTimeString('pt-BR');
+
+  }
 
 },1000);
+
+/* SOUND */
 
 function toggleSound(){
 
@@ -511,34 +528,60 @@ function toggleSound(){
 
 }
 
+/* STATS */
+
 function renderStats(data){
 
-  document.getElementById('kpi-live').textContent=data.live||0;
+  document.getElementById('kpi-live').textContent=
+    data.live || 0;
 
-  document.getElementById('kpi-sales').textContent=data.totalSales||0;
+  document.getElementById('kpi-sales').textContent=
+    data.totalSales || 0;
 
   document.getElementById('kpi-revenue').textContent=
-    'R$'+Number(data.revenue||0).toFixed(2);
+    Number(data.revenue || 0)
+      .toLocaleString('pt-BR',{
+        style:'currency',
+        currency:'BRL'
+      });
+
+  const cr =
+    data.live > 0
+      ? ((data.totalSales / data.live) * 100).toFixed(1)
+      : 0;
 
   document.getElementById('kpi-cr').textContent=
-    data.cr || '0%';
+    cr + '%';
 
-  renderCountries(data.countries||[]);
+  renderCountries(data.countries || {});
 
-  renderSales(data.sales||[]);
+  renderSales(data.sales || []);
 
-  renderFunnel(data.funnelSteps||[]);
+  renderFunnel(data.funnelSteps || []);
 
-  renderMap(data.countries||[]);
+  renderMap(data.countries || {});
 
 }
 
+/* COUNTRIES */
+
 function renderCountries(countries){
 
-  const html=countries.map(c=>`
+  const entries = Object.entries(countries);
+
+  if(entries.length===0){
+
+    document.getElementById('countries-list').innerHTML=
+      '<div style="opacity:.5;">Sem dados</div>';
+
+    return;
+
+  }
+
+  const html=entries.map(([code,count])=>`
     <div class="country-row">
-      <span>${c.code}</span>
-      <span>${c.count}</span>
+      <span>${code}</span>
+      <span>${count}</span>
     </div>
   `).join('');
 
@@ -546,12 +589,28 @@ function renderCountries(countries){
 
 }
 
+/* SALES */
+
 function renderSales(sales){
 
-  const html=sales.map(s=>`
+  if(!sales.length){
+
+    document.getElementById('sales-feed').innerHTML=
+      '<div style="opacity:.5;">Sem vendas</div>';
+
+    return;
+
+  }
+
+  const html=sales.slice(0,20).map(s=>`
     <div class="sale-row">
-      <span>${s.customer_name}</span>
-      <strong>R$${Number(s.amount).toFixed(2)}</strong>
+      <span>${s.customer_name || 'Cliente'}</span>
+      <strong>
+        ${Number(s.amount || 0).toLocaleString('pt-BR',{
+          style:'currency',
+          currency:'BRL'
+        })}
+      </strong>
     </div>
   `).join('');
 
@@ -559,20 +618,31 @@ function renderSales(sales){
 
 }
 
+/* FUNNEL */
+
 function renderFunnel(steps){
 
-  const max=Math.max(...steps.map(s=>s.total),1);
+  if(!steps.length){
+
+    document.getElementById('funnel-list').innerHTML=
+      '<div style="opacity:.5;">Sem dados</div>';
+
+    return;
+
+  }
+
+  const max=Math.max(...steps.map(s=>s.total || 0),1);
 
   const html=steps.map(s=>{
 
-    const width=(s.total/max)*100;
+    const width=((s.total || 0)/max)*100;
 
     return `
       <div class="funnel-step">
 
         <div class="step-top">
-          <span>${s.label}</span>
-          <span>${s.total}</span>
+          <span>${s.label || s.id}</span>
+          <span>${s.total || 0}</span>
         </div>
 
         <div class="bar">
@@ -588,9 +658,13 @@ function renderFunnel(steps){
 
 }
 
+/* HEATMAP */
+
 function renderHeatmap(points){
 
   const canvas=document.getElementById('heatmap-canvas');
+
+  if(!canvas) return;
 
   const ctx=canvas.getContext('2d');
 
@@ -626,14 +700,16 @@ function renderHeatmap(points){
 
 }
 
-let worldMap=null;
+/* MAP */
 
 function renderMap(countries){
 
   const values={};
 
-  countries.forEach(c=>{
-    values[c.code]=c.count;
+  Object.entries(countries).forEach(([code,count])=>{
+
+    values[code]=count;
+
   });
 
   if(!worldMap){
@@ -672,7 +748,7 @@ function renderMap(countries){
 
 }
 
-let ws;
+/* WS */
 
 function connectWS(){
 
@@ -685,29 +761,45 @@ function connectWS(){
 
   ws.onmessage=(e)=>{
 
-    const msg=JSON.parse(e.data);
+    try{
 
-    if(msg.type==='stats'){
+      const msg=JSON.parse(e.data);
 
-      renderStats(msg.data);
+      if(msg.type==='stats'){
 
-      if(msg.newSale){
+        renderStats(msg.data);
 
-        showToast(msg.newSale);
+        if(msg.newSale){
+
+          showToast(msg.newSale);
+
+        }
 
       }
 
-    }
+      if(msg.type==='heatmap'){
 
-    if(msg.type==='heatmap'){
+        renderHeatmap(msg.data);
 
-      renderHeatmap(msg.data);
+      }
+
+    }catch(err){
+
+      console.error(err);
 
     }
 
   };
 
+  ws.onclose=()=>{
+
+    setTimeout(connectWS,3000);
+
+  };
+
 }
+
+/* TOAST */
 
 function showToast(sale){
 
@@ -722,20 +814,27 @@ function showToast(sale){
   }
 
   document.getElementById('toast-name').textContent=
-    sale.customer_name;
+    sale.customer_name || 'Cliente';
 
   document.getElementById('toast-amount').textContent=
-    'R$'+Number(sale.amount).toFixed(2);
+    Number(sale.amount || 0).toLocaleString('pt-BR',{
+      style:'currency',
+      currency:'BRL'
+    });
 
   const toast=document.getElementById('sale-toast');
 
   toast.style.display='block';
 
   setTimeout(()=>{
+
     toast.style.display='none';
+
   },5000);
 
 }
+
+/* INIT */
 
 function initDashboard(){
 
@@ -745,7 +844,11 @@ function initDashboard(){
     }
   })
   .then(r=>r.json())
-  .then(renderStats);
+  .then(data=>{
+
+    renderStats(data);
+
+  });
 
   connectWS();
 

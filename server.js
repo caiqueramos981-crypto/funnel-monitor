@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -221,13 +222,33 @@ if (!sessionId || !page) return res.status(400).json({ error: 'Missing fields' }
   res.json({ ok: true });
 });
 
-// ── WEBHOOK LASTLINK ─────────────────────────────
+// ── WEBHOOK LASTLINK SEGURO ─────────────────────
 app.post('/webhook/lastlink', (req, res) => {
 
   try {
 
-    console.log('LASTLINK WEBHOOK RECEBIDO');
-    console.log(req.body);
+    // token enviado pela LastLink
+    const signature =
+      req.headers['x-lastlink-signature'] ||
+      req.headers['x-webhook-token'] ||
+      req.headers['authorization'];
+
+    // segredo salvo no .env
+    const secret =
+      process.env.LASTLINK_WEBHOOK_SECRET;
+
+    // valida
+    if (!signature || signature !== secret) {
+
+      console.log('Webhook inválido');
+
+      return res.status(401).json({
+        error: 'invalid signature'
+      });
+
+    }
+
+    console.log('LASTLINK WEBHOOK OK');
 
     const data = req.body;
 
@@ -293,21 +314,18 @@ app.post('/webhook/lastlink', (req, res) => {
 
     };
 
-    // feed realtime
     salesFeed.push(sale);
 
     if (salesFeed.length > 100) {
       salesFeed.shift();
     }
 
-    // salva no dia
     if (!dailyStats[day].sales) {
       dailyStats[day].sales = [];
     }
 
     dailyStats[day].sales.push(sale);
 
-    // registra conversão
     const fakeSession = `ll_${sale.id}`;
 
     ['checkout', 'obrigado'].forEach(step => {
@@ -326,7 +344,6 @@ app.post('/webhook/lastlink', (req, res) => {
 
     });
 
-    // websocket realtime
     broadcastStats({
       newSale: sale
     });

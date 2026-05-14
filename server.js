@@ -223,6 +223,99 @@ app.post('/webhook/mundpay', (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /webhook/lowify
+app.post('/webhook/lowify', (req, res) => {
+
+  console.log('LOWIFY WEBHOOK RECEBIDO');
+  console.log(req.body);
+
+  const data = req.body;
+
+  // Detecta compra aprovada
+  const status =
+    data.status ||
+    data.event ||
+    data.payment_status;
+
+  const approved =
+    status === 'approved' ||
+    status === 'paid' ||
+    status === 'payment.approved';
+
+  if (!approved) {
+    return res.json({
+      ok: true,
+      ignored: true
+    });
+  }
+
+  const day = todayKey();
+  ensureDay(day);
+
+  const sale = {
+    id:
+      data.id ||
+      data.transaction_id ||
+      Date.now(),
+
+    product_id:
+      data.product_name ||
+      data.product ||
+      'Produto',
+
+    amount:
+      parseFloat(data.amount || data.price || 0),
+
+    customer_name:
+      data.customer?.name ||
+      data.name ||
+      'Cliente',
+
+    country: 'BR',
+    ts: Date.now()
+  };
+
+  salesFeed.push(sale);
+
+  if (salesFeed.length > 100) {
+    salesFeed.shift();
+  }
+
+  if (!dailyStats[day].sales) {
+    dailyStats[day].sales = [];
+  }
+
+  dailyStats[day].sales.push(sale);
+
+  // registra conversão
+  const fakeSession = `lw_${sale.id}`;
+
+  ['checkout', 'obrigado'].forEach(step => {
+
+    if (!dailyStats[day][`_seen_${step}`]) {
+      dailyStats[day][`_seen_${step}`] = new Set();
+    }
+
+    if (!dailyStats[day][`_seen_${step}`].has(fakeSession)) {
+
+      dailyStats[day][`_seen_${step}`].add(fakeSession);
+
+      dailyStats[day].steps[step]++;
+
+    }
+
+  });
+
+  broadcastStats({
+    newSale: sale
+  });
+
+  res.json({
+    ok: true
+  });
+
+});
+
 // GET /api/auth — validate password
 app.get('/api/auth', authMiddleware, (req, res) => {
   res.json({ ok: true });

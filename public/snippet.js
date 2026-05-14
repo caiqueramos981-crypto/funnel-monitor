@@ -160,7 +160,33 @@
   // =========================
   // DEBUG
   // =========================
+// ─── Heatmap Click Tracking ──────────────────────
 
+document.addEventListener('click', e => {
+
+  fetch('funnel-monitor-production.up.railway.app/api/heatmap', {
+
+    method: 'POST',
+
+    headers: {
+      'Content-Type': 'application/json'
+    },
+
+    body: JSON.stringify({
+
+      x: e.clientX,
+      y: e.clientY,
+
+      w: window.innerWidth,
+      h: window.innerHeight,
+
+      page: location.pathname
+
+    })
+
+  }).catch(() => {});
+
+});
   console.log("⚡ Funnel Monitor");
   console.log("Página detectada:", page);
 })();

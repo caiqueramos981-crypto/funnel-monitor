@@ -128,15 +128,20 @@ app.post('/webhook/lastlink', async (req, res) => {
 
     const event = body.Event;
 
-    // somente compra aprovada
-    if (event !== 'Purchase_Order_Confirmed') {
+    if (body.IsTest) {
+  return res.json({
+    ok: true,
+    ignored: 'test_event'
+  });
+}
 
-      return res.json({
-        ok: true,
-        ignored: true
-      });
+if (event !== 'Purchase_Order_Confirmed') {
+  return res.json({
+    ok: true,
+    ignored: event
+  });
+}
 
-    }
 
     const buyer = body.Data?.Buyer || {};
 

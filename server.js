@@ -122,23 +122,14 @@ app.post('/webhook/lastlink', async (req, res) => {
 
   try {
 
-    const data = req.body;
+    const body = req.body;
 
-    console.log('📩 Webhook LastLink:', data);
+    console.log('📩 Webhook LastLink:', JSON.stringify(body, null, 2));
 
-    // Detecta status aprovado
-    const status =
-      data.status ||
-      data.event ||
-      data.payment_status;
+    const event = body.Event;
 
-    const approved =
-      status === 'approved' ||
-      status === 'paid' ||
-      status === 'payment.approved' ||
-      status === 'purchase_approved';
-
-    if (!approved) {
+    // somente compra aprovada
+    if (event !== 'Purchase_Order_Confirmed') {
 
       return res.json({
         ok: true,
@@ -147,31 +138,35 @@ app.post('/webhook/lastlink', async (req, res) => {
 
     }
 
-    // monta venda
+    const buyer = body.Data?.Buyer || {};
+
+    const purchase = body.Data?.Purchase || {};
+
+    const utm = body.Data?.Utm || {};
+
+    const amount =
+      Number(
+        purchase?.Price?.Value ||
+        purchase?.OriginalPrice?.Value ||
+        0
+      );
+
     const sale = {
 
       id:
-        data.id ||
+        purchase?.PaymentId ||
         Date.now(),
 
-      amount: Number(
-        data.amount ||
-        data.value ||
-        data.purchase?.price ||
-        0
-      ),
+      amount,
 
       customer_name:
-        data.customer?.name ||
-        data.buyer?.name ||
+        buyer?.Name ||
         'Cliente',
 
-      country:
-        data.customer?.country ||
-        'BR',
+      country: 'BR',
 
       source:
-        data.utm?.source ||
+        utm?.UtmSource ||
         'LastLink',
 
       ts: Date.now()
@@ -181,21 +176,28 @@ app.post('/webhook/lastlink', async (req, res) => {
     // adiciona venda
     stats.sales.unshift(sale);
 
-    // limita feed
     if (stats.sales.length > 100) {
       stats.sales.pop();
     }
 
-    // atualiza KPIs
+    // KPIs
     stats.totalSales += 1;
 
-    stats.revenue += sale.amount;
+    stats.revenue += amount;
 
-    // atualiza live fake
-    stats.live =
-      Math.floor(Math.random() * 200) + 20;
+    // países
+    const existing =
+      stats.countries['BR'] || 0;
 
-    // broadcast realtime
+    stats.countries['BR'] = existing + 1;
+
+    // conversão fake
+    stats.cr =
+      (
+        (stats.totalSales / 1000) * 100
+      ).toFixed(1) + '%';
+
+    // realtime
     broadcast({
       type: 'stats',
       data: stats,
@@ -208,7 +210,7 @@ app.post('/webhook/lastlink', async (req, res) => {
 
   } catch (err) {
 
-    console.error('❌ Webhook Error:', err);
+    console.error(err);
 
     return res.status(500).json({
       error: err.message
